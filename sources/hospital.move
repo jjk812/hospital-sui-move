@@ -142,7 +142,7 @@ module Hospital::hospital {
     public fun pay_money(ctx:&mut TxContext,hospital:&mut Hospital,treatment:&mut Treatment,patient:&mut Patient,clock: &Clock){
         assert!(treatment.payer_address==patient.patient_address,TREATMENT_NOT_BELONG_TO_YOU);
         assert!(!treatment.complete, TREATMENT_HAVE_COMPLETE);
-        assert!(treatment.data+86400>timestamp_ms(clock),TIME_OUT);
+        assert!(treatment.data+ONE_DAY>timestamp_ms(clock),TIME_OUT);
         assert!(!(treatment.price==0), TREATMENT_PRICE_NOT_SET);
         assert!(balance::value<SUI>(&patient.balance) >= treatment.price, ERROR_INSUFFICIENT_FUNDS);
         let pay_balance = balance::split<SUI>(&mut patient.balance,treatment.price);
@@ -182,6 +182,4 @@ module Hospital::hospital {
     public fun treatment_price(treatment:& Treatment):u64{
         treatment.price
     }
-
-
 }
