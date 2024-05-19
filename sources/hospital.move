@@ -1,13 +1,10 @@
 module Hospital::hospital {
-    use sui::tx_context::{self, TxContext};
-    use std::string::String;
+    use std::string::{Self,String};
     use sui::coin::{Self, Coin};
     use sui::sui::{SUI};
     use sui::balance::{Self, Balance};
     use sui::clock::{Clock, timestamp_ms};
     use sui::table::{Self, Table};
-    use sui::transfer;
-    use sui::object;
 
     // ERROR CODES
     const TREATMENT_HAVE_COMPLETE: u64 = 1;
@@ -72,7 +69,8 @@ module Hospital::hospital {
     }
 
     public struct Roles has key, store {
-        admins: vector<address>,
+        id:UID,
+        admin: address,
         hospitals: vector<address>,
         doctors: vector<address>,
         pharmacists: vector<address>,
@@ -81,64 +79,36 @@ module Hospital::hospital {
 
     // Utility function to validate input
     fun validate_input(input: &String) {
-        assert!((*input).len() > 0, INVALID_DATA);
-        assert!((*input).len() <= 255, INVALID_DATA); // Example limit
-    }
-
-    // Initialize roles (should be called once by an admin)
-    public fun initialize_roles(admins: vector<address>, ctx: &mut TxContext): Roles {
-        Roles {
-            admins,
-            hospitals: vector::empty(),
-            doctors: vector::empty(),
-            pharmacists: vector::empty(),
-            patients: vector::empty(),
-        }
-    }
-
-    // Add a new admin
-    public fun add_admin(roles: &mut Roles, new_admin: address, ctx: &mut TxContext) {
-        assert!(vector::contains(&roles.admins, tx_context::sender(ctx)), UNAUTHORIZED_ACCESS);
-        vector::push_back(&mut roles.admins, new_admin);
+        assert!((*input).length() > 0, INVALID_DATA);
+        assert!((*input).length() <= 255, INVALID_DATA); // Example limit
     }
 
     // Add a new hospital
     public fun add_hospital(roles: &mut Roles, new_hospital: address, ctx: &mut TxContext) {
-        assert!(vector::contains(&roles.admins, tx_context::sender(ctx)), UNAUTHORIZED_ACCESS);
+        assert!(roles.admin==tx_context::sender(ctx), UNAUTHORIZED_ACCESS);
         vector::push_back(&mut roles.hospitals, new_hospital);
     }
 
-    // Add a new doctor role
-    public fun add_doctor(roles: &mut Roles, new_doctor: address, ctx: &mut TxContext) {
-        assert!(vector::contains(&roles.admins, tx_context::sender(ctx)), UNAUTHORIZED_ACCESS);
-        vector::push_back(&mut roles.doctors, new_doctor);
-    }
 
-    // Add a new pharmacist role
-    public fun add_pharmacist(roles: &mut Roles, new_pharmacist: address, ctx: &mut TxContext) {
-        assert!(vector::contains(&roles.admins, tx_context::sender(ctx)), UNAUTHORIZED_ACCESS);
-        vector::push_back(&mut roles.pharmacists, new_pharmacist);
-    }
-
-    // Add a new patient role
-    public fun add_patient(roles: &mut Roles, new_patient: address, ctx: &mut TxContext) {
-        assert!(vector::contains(&roles.admins, tx_context::sender(ctx)), UNAUTHORIZED_ACCESS);
-        vector::push_back(&mut roles.patients, new_patient);
-    }
 
     // Initialize admin capabilities
-    public fun init(ctx: &mut TxContext) {
-        let admin = AdminCap {
-            id: object::new(ctx)
+    fun init(ctx: &mut TxContext) {
+        let admin_address = tx_context::sender(ctx);
+        let roles= Roles {
+            id:object::new(ctx),
+            admin:admin_address,
+            hospitals: vector::empty(),
+            doctors: vector::empty(),
+            pharmacists: vector::empty(),
+            patients: vector::empty(),
         };
-        // Transfer AdminCap to a designated admin address
-        let admin_address = tx_context::sender(ctx); // Set the initial admin
-        transfer::transfer(admin, admin_address);
+        transfer::public_share_object(roles);
     }
 
     // The administrator grants permission to the doctor
-    public fun approve_doctor_cap(roles: &Roles, admin_cap: &AdminCap, hospital: &Hospital, to: address, ctx: &mut TxContext) {
-        assert!(vector::contains(&roles.admins, tx_context::sender(ctx)), UNAUTHORIZED_ACCESS);
+    public fun approve_doctor_cap(roles: &mut Roles,hospital: &Hospital, to: address, ctx: &mut TxContext) {
+        assert!(roles.admin==tx_context::sender(ctx), UNAUTHORIZED_ACCESS);
+        vector::push_back(&mut roles.doctors, to);
         let doctor_cap = DoctorCap {
             id: object::new(ctx),
             hospital: hospital.hospital_address
@@ -147,8 +117,9 @@ module Hospital::hospital {
     }
 
     // The administrator grants permissions to the pharmacist
-    public fun approve_pharmacist_cap(roles: &Roles, admin_cap: &AdminCap, hospital: &Hospital, to: address, ctx: &mut TxContext) {
-        assert!(vector::contains(&roles.admins, tx_context::sender(ctx)), UNAUTHORIZED_ACCESS);
+    public fun approve_pharmacist_cap(roles: &mut Roles, hospital: &Hospital, to: address, ctx: &mut TxContext) {
+        assert!(roles.admin==tx_context::sender(ctx), UNAUTHORIZED_ACCESS);
+        vector::push_back(&mut roles.pharmacists, to);
         let pharmacist_cap = PharmacistCap {
             id: object::new(ctx),
             hospital: hospital.hospital_address
@@ -157,8 +128,8 @@ module Hospital::hospital {
     }
 
     // The administrator creates a hospital object
-    public fun create_hospital(roles: &mut Roles, admin_cap: &AdminCap, hospital_name: String, ctx: &mut TxContext) {
-        assert!(vector::contains(&roles.admins, tx_context::sender(ctx)), UNAUTHORIZED_ACCESS);
+    public fun create_hospital(roles: &mut Roles, hospital_name: String, ctx: &mut TxContext) {
+        assert!(roles.admin==tx_context::sender(ctx), UNAUTHORIZED_ACCESS);
         validate_input(&hospital_name);
         let id_ = object::new(ctx);
         let hospital_address_ = object::uid_to_address(&id_);
@@ -173,7 +144,7 @@ module Hospital::hospital {
     }
 
     // The doctor creates a medical treatment
-    public fun create_treatment(doctor_cap: &DoctorCap, hospital: &Hospital, patient_information: String, condition_description: String, prescribe_medicine: String, medication_guide: String, timeout: u64, clock: &Clock, ctx: &mut TxContext) {
+    public fun create_treatment(doctor_cap: &DoctorCap, hospital: &Hospital, patient_information: String, condition_description: String, prescribe_medicine: String, medication_guide: String, clock: &Clock, ctx: &mut TxContext) {
         assert!(doctor_cap.hospital == hospital.hospital_address, DOCTOR_NOTIN_HOSPITAL);
         validate_input(&patient_information);
         validate_input(&condition_description);
@@ -194,14 +165,14 @@ module Hospital::hospital {
             date: timestamp_ms(clock),
             price: 0,
             complete: false,
-            status: "Pending".to_string(),
-            timeout: timeout
+            status: string::utf8(b"Pending"),
+            timeout: ONE_DAY
         };
         transfer::share_object(treatment);
     }
 
     // The patient creates a patient object
-    public fun new_patient(roles: &mut Roles, ctx: &mut TxContext) {
+    public fun new_patient( ctx: &mut TxContext) {
         let patient = Patient {
             id: object::new(ctx),
             treatments: table::new(ctx),
@@ -209,7 +180,6 @@ module Hospital::hospital {
             balance: balance::zero()
         };
         transfer::public_transfer(patient, tx_context::sender(ctx));
-        add_patient(roles, tx_context::sender(ctx), ctx);
     }
 
     // The pharmacist determines the price of the medicine
@@ -220,7 +190,7 @@ module Hospital::hospital {
         assert!(treatment.date + treatment.timeout > timestamp_ms(clock), TIME_OUT);
         treatment.pharmacist_address = tx_context::sender(ctx);
         treatment.price = price;
-        treatment.status = "Priced".to_string();
+        treatment.status = string::utf8(b"Priced");
     }
 
     // The patient pays the amount
@@ -234,9 +204,8 @@ module Hospital::hospital {
         balance::join(&mut hospital.balance, pay_balance);
         treatment.payer_address = tx_context::sender(ctx);
         treatment.complete = true;
-        treatment.status = "Paid".to_string();
+        treatment.status =  string::utf8(b"Paid");
     }
-
     // Add treatment to patient's history
     public fun add_treatment(treatment: Treatment, patient: &mut Patient) {
         table::add(&mut patient.treatments, treatment.key, treatment);
@@ -255,8 +224,7 @@ module Hospital::hospital {
     }
 
     // The administrator withdraws the hospital's money and transfers it to a specified address
-    public fun hospital_withdraw(admin_cap: &AdminCap, hospital: &mut Hospital, to: address, ctx: &mut TxContext) {
-        assert!(admin_cap.id == object::new(ctx), UNAUTHORIZED_ACCESS);
+    public fun hospital_withdraw(_: &AdminCap, hospital: &mut Hospital, to: address, ctx: &mut TxContext) {
         let balance_ = balance::withdraw_all(&mut hospital.balance);
         let coin_ = coin::from_balance(balance_, ctx);
         transfer::public_transfer(coin_, to);
@@ -275,19 +243,14 @@ module Hospital::hospital {
         treatment.price
     }
 
-    // Retrieve all treatments for a patient
-    public fun list_treatments(patient: &Patient): vector<Treatment> {
-        table::values(&patient.treatments)
-    }
-
     // Retrieve specific treatment details
-    public fun get_treatment(patient: &Patient, treatment_id: address): Option<Treatment> {
-        table::get(&patient.treatments, treatment_id)
+    public fun get_treatment(patient: &Patient, treatment_id: address): &Treatment {
+        table::borrow(&patient.treatments, treatment_id)
     }
 
     // Set configurable timeout for treatments
-    public fun set_treatment_timeout(admin_cap: &AdminCap, treatment: &mut Treatment, timeout: u64, ctx: &mut TxContext) {
-        assert!(admin_cap.id == object::new(ctx), UNAUTHORIZED_ACCESS);
+    public fun set_treatment_timeout(_: &DoctorCap, treatment: &mut Treatment, timeout: u64, ctx: &mut TxContext) {
+        assert!(treatment.doctor_address ==tx_context::sender(ctx) , UNAUTHORIZED_ACCESS);
         treatment.timeout = timeout;
     }
 }
