@@ -78,7 +78,7 @@ module Hospital::hospital {
     }
     // Initialize admin capabilities
     fun init(ctx: &mut TxContext) {
-        let admin_address = tx_context::sender(ctx);
+        let admin_address = ctx.sender();
         let roles= Roles {
             id:object::new(ctx),
             admin:admin_address,
@@ -92,13 +92,13 @@ module Hospital::hospital {
 
     // Add a new hospital
     public fun add_hospital(roles: &mut Roles, new_hospital: address, ctx: &mut TxContext) {
-        assert!(roles.admin==tx_context::sender(ctx), UNAUTHORIZED_ACCESS);
+        assert!(roles.admin==ctx.sender(), UNAUTHORIZED_ACCESS);
         vector::push_back(&mut roles.hospitals, new_hospital);
     }
 
     // The administrator grants permission to the doctor
     public fun approve_doctor_cap(roles: &mut Roles, hospital: &Hospital, to: address, ctx: &mut TxContext) {
-        assert!(roles.admin==tx_context::sender(ctx), UNAUTHORIZED_ACCESS);
+        assert!(roles.admin==ctx.sender(), UNAUTHORIZED_ACCESS);
         vector::push_back(&mut roles.doctors, to);
         let doctor_cap = DoctorCap {
             id: object::new(ctx),
@@ -109,7 +109,7 @@ module Hospital::hospital {
 
     // The administrator grants permissions to the pharmacist
     public fun approve_pharmacist_cap(roles: &mut Roles, hospital: &Hospital, to: address, ctx: &mut TxContext) {
-        assert!(roles.admin==tx_context::sender(ctx), UNAUTHORIZED_ACCESS);
+        assert!(roles.admin==ctx.sender(), UNAUTHORIZED_ACCESS);
         vector::push_back(&mut roles.pharmacists, to);
         let pharmacist_cap = PharmacistCap {
             id: object::new(ctx),
@@ -120,7 +120,7 @@ module Hospital::hospital {
 
     // The administrator creates a hospital object
     public fun create_hospital(roles: &mut Roles, hospital_name: String, ctx: &mut TxContext) {
-        assert!(roles.admin==tx_context::sender(ctx), UNAUTHORIZED_ACCESS);
+        assert!(roles.admin==ctx.sender(), UNAUTHORIZED_ACCESS);
         
         let id_ = object::new(ctx);
         let hospital_address_ = object::uid_to_address(&id_);
@@ -143,7 +143,7 @@ module Hospital::hospital {
         let treatment = Treatment {
             id: id_,
             key: key_,
-            doctor_address: tx_context::sender(ctx),
+            doctor_address: ctx.sender(),
             pharmacist_address: ZERO_ADDRESS,
             payer_address: ZERO_ADDRESS,
             patient_information: patient_information,
@@ -164,10 +164,10 @@ module Hospital::hospital {
         let patient = Patient {
             id: object::new(ctx),
             treatments: table::new(ctx),
-            patient_address: tx_context::sender(ctx),
+            patient_address: ctx.sender(),
             balance: balance::zero()
         };
-        transfer::public_transfer(patient, tx_context::sender(ctx));
+        transfer::public_transfer(patient, ctx.sender());
     }
 
     // The pharmacist determines the price of the medicine
@@ -176,7 +176,7 @@ module Hospital::hospital {
         assert!(!treatment.complete, TREATMENT_HAVE_COMPLETE);
         assert!(treatment.price == 0, TREATMENT_PRICE_HAVE_SET);
         assert!(treatment.date + treatment.timeout > timestamp_ms(clock), TIME_OUT);
-        treatment.pharmacist_address = tx_context::sender(ctx);
+        treatment.pharmacist_address = ctx.sender();
         treatment.price = price;
         treatment.status = string::utf8(b"Priced");
     }
@@ -190,7 +190,7 @@ module Hospital::hospital {
         assert!(balance::value<SUI>(&patient.balance) >= treatment.price, ERROR_INSUFFICIENT_FUNDS);
         let pay_balance = balance::split<SUI>(&mut patient.balance, treatment.price);
         balance::join(&mut hospital.balance, pay_balance);
-        treatment.payer_address = tx_context::sender(ctx);
+        treatment.payer_address = ctx.sender();
         treatment.complete = true;
         treatment.status =  string::utf8(b"Paid");
     }
@@ -208,7 +208,7 @@ module Hospital::hospital {
     public fun patient_withdraw(patient: &mut Patient, ctx: &mut TxContext) {
         let balance_ = balance::withdraw_all(&mut patient.balance);
         let coin_ = coin::from_balance(balance_, ctx);
-        transfer::public_transfer(coin_, tx_context::sender(ctx));
+        transfer::public_transfer(coin_, ctx.sender());
     }
 
     // The administrator withdraws the hospital's money and transfers it to a specified address
@@ -238,7 +238,7 @@ module Hospital::hospital {
 
     // Set configurable timeout for treatments
     public fun set_treatment_timeout(_: &DoctorCap, treatment: &mut Treatment, timeout: u64, ctx: &mut TxContext) {
-        assert!(treatment.doctor_address ==tx_context::sender(ctx) , UNAUTHORIZED_ACCESS);
+        assert!(treatment.doctor_address ==ctx.sender() , UNAUTHORIZED_ACCESS);
         treatment.timeout = timeout;
     }
 }
