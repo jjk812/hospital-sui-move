@@ -92,14 +92,12 @@ module Hospital::hospital {
     }
 
     // Add a new hospital
-    public fun add_hospital(roles: &mut Roles, new_hospital: address, ctx: &mut TxContext) {
-        assert!(roles.admin==ctx.sender(), UNAUTHORIZED_ACCESS);
+    public fun add_hospital(_: &AdminCap, roles: &mut Roles, new_hospital: address, ctx: &mut TxContext) {
         vector::push_back(&mut roles.hospitals, new_hospital);
     }
 
     // The administrator grants permission to the doctor
-    public fun approve_doctor_cap(roles: &mut Roles, hospital: &Hospital, to: address, ctx: &mut TxContext) {
-        assert!(roles.admin==ctx.sender(), UNAUTHORIZED_ACCESS);
+    public fun approve_doctor_cap(_: &AdminCap, roles: &mut Roles, hospital: &Hospital, to: address, ctx: &mut TxContext) {
         vector::push_back(&mut roles.doctors, to);
         let doctor_cap = DoctorCap {
             id: object::new(ctx),
@@ -109,8 +107,7 @@ module Hospital::hospital {
     }
 
     // The administrator grants permissions to the pharmacist
-    public fun approve_pharmacist_cap(roles: &mut Roles, hospital: &Hospital, to: address, ctx: &mut TxContext) {
-        assert!(roles.admin==ctx.sender(), UNAUTHORIZED_ACCESS);
+    public fun approve_pharmacist_cap(_: &AdminCap, roles: &mut Roles, hospital: &Hospital, to: address, ctx: &mut TxContext) {
         vector::push_back(&mut roles.pharmacists, to);
         let pharmacist_cap = PharmacistCap {
             id: object::new(ctx),
@@ -120,9 +117,7 @@ module Hospital::hospital {
     }
 
     // The administrator creates a hospital object
-    public fun create_hospital(roles: &mut Roles, hospital_name: String, ctx: &mut TxContext) {
-        assert!(roles.admin==ctx.sender(), UNAUTHORIZED_ACCESS);
-        
+    public fun create_hospital(_: &AdminCap, roles: &mut Roles, hospital_name: String, ctx: &mut TxContext) {
         let id_ = object::new(ctx);
         let hospital_address_ = object::uid_to_address(&id_);
         let hospital = Hospital {
