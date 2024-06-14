@@ -76,21 +76,6 @@ module Hospital::hospital {
         pharmacists: vector<address>,
         patients: vector<address>
     }
-
-    // Utility function to validate input
-    fun validate_input(input: &String) {
-        assert!((*input).length() > 0, INVALID_DATA);
-        assert!((*input).length() <= 255, INVALID_DATA); // Example limit
-    }
-
-    // Add a new hospital
-    public fun add_hospital(roles: &mut Roles, new_hospital: address, ctx: &mut TxContext) {
-        assert!(roles.admin==tx_context::sender(ctx), UNAUTHORIZED_ACCESS);
-        vector::push_back(&mut roles.hospitals, new_hospital);
-    }
-
-
-
     // Initialize admin capabilities
     fun init(ctx: &mut TxContext) {
         let admin_address = tx_context::sender(ctx);
@@ -103,6 +88,12 @@ module Hospital::hospital {
             patients: vector::empty(),
         };
         transfer::public_share_object(roles);
+    }
+
+    // Add a new hospital
+    public fun add_hospital(roles: &mut Roles, new_hospital: address, ctx: &mut TxContext) {
+        assert!(roles.admin==tx_context::sender(ctx), UNAUTHORIZED_ACCESS);
+        vector::push_back(&mut roles.hospitals, new_hospital);
     }
 
     // The administrator grants permission to the doctor
@@ -252,5 +243,12 @@ module Hospital::hospital {
     public fun set_treatment_timeout(_: &DoctorCap, treatment: &mut Treatment, timeout: u64, ctx: &mut TxContext) {
         assert!(treatment.doctor_address ==tx_context::sender(ctx) , UNAUTHORIZED_ACCESS);
         treatment.timeout = timeout;
+    }
+
+
+    // Utility function to validate input
+    fun validate_input(input: &String) {
+        assert!((*input).length() > 0, INVALID_DATA);
+        assert!((*input).length() <= 255, INVALID_DATA); // Example limit
     }
 }
