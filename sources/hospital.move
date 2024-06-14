@@ -78,16 +78,17 @@ module Hospital::hospital {
     }
     // Initialize admin capabilities
     fun init(ctx: &mut TxContext) {
-        let admin_address = ctx.sender();
         let roles= Roles {
             id:object::new(ctx),
-            admin:admin_address,
+            admin: ctx.sender(),
             hospitals: vector::empty(),
             doctors: vector::empty(),
             pharmacists: vector::empty(),
             patients: vector::empty(),
         };
         transfer::public_share_object(roles);
+
+        transfer::transfer(AdminCap{id: object::new(ctx)}, ctx.sender());
     }
 
     // Add a new hospital
