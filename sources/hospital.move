@@ -97,7 +97,7 @@ module Hospital::hospital {
     }
 
     // The administrator grants permission to the doctor
-    public fun approve_doctor_cap(roles: &mut Roles,hospital: &Hospital, to: address, ctx: &mut TxContext) {
+    public fun approve_doctor_cap(roles: &mut Roles, hospital: &Hospital, to: address, ctx: &mut TxContext) {
         assert!(roles.admin==tx_context::sender(ctx), UNAUTHORIZED_ACCESS);
         vector::push_back(&mut roles.doctors, to);
         let doctor_cap = DoctorCap {
@@ -121,7 +121,7 @@ module Hospital::hospital {
     // The administrator creates a hospital object
     public fun create_hospital(roles: &mut Roles, hospital_name: String, ctx: &mut TxContext) {
         assert!(roles.admin==tx_context::sender(ctx), UNAUTHORIZED_ACCESS);
-        validate_input(&hospital_name);
+        
         let id_ = object::new(ctx);
         let hospital_address_ = object::uid_to_address(&id_);
         let hospital = Hospital {
@@ -137,10 +137,7 @@ module Hospital::hospital {
     // The doctor creates a medical treatment
     public fun create_treatment(doctor_cap: &DoctorCap, hospital: &Hospital, patient_information: String, condition_description: String, prescribe_medicine: String, medication_guide: String, clock: &Clock, ctx: &mut TxContext) {
         assert!(doctor_cap.hospital == hospital.hospital_address, DOCTOR_NOTIN_HOSPITAL);
-        validate_input(&patient_information);
-        validate_input(&condition_description);
-        validate_input(&prescribe_medicine);
-        validate_input(&medication_guide);
+    
         let id_ = object::new(ctx);
         let key_ = object::uid_to_address(&id_);
         let treatment = Treatment {
@@ -243,12 +240,5 @@ module Hospital::hospital {
     public fun set_treatment_timeout(_: &DoctorCap, treatment: &mut Treatment, timeout: u64, ctx: &mut TxContext) {
         assert!(treatment.doctor_address ==tx_context::sender(ctx) , UNAUTHORIZED_ACCESS);
         treatment.timeout = timeout;
-    }
-
-
-    // Utility function to validate input
-    fun validate_input(input: &String) {
-        assert!((*input).length() > 0, INVALID_DATA);
-        assert!((*input).length() <= 255, INVALID_DATA); // Example limit
     }
 }
